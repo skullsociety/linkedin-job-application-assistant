@@ -1,0 +1,55 @@
+# Private user data and local configuration
+.env
+.env.*
+!.env.example
+config.toml
+config.local.toml
+data/
+exports/
+logs/
+resumes/
+tmp/
+docker-data/
+native-messaging/
+
+# Local runtimes and downloaded dependencies
+.venv/
+.test-deps/
+node_modules/
+.npm-cache/
+
+# Python caches and test output
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+playwright-report/
+test-results/
+
+# Generated databases, logs, packages, and personal documents
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*.log
+*.tgz
+*.pdf
+*.docx
+*.xlsx
+
+# Local editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Optional machine-specific Docker Compose settings
+compose.override.yaml
+compose.override.yml
+docker-compose.override.yaml
+docker-compose.override.yml

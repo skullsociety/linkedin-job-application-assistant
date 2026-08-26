@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LinkedIn Job Assistant</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <header>
+    <span class="eyebrow">LOCAL-ONLY ASSISTANT</span>
+    <h1>LinkedIn Job Assistant</h1>
+    <p>Capture what you can see. You stay in control of every application.</p>
+  </header>
+  <main>
+    <section class="connection card">
+      <span id="connection-dot" class="dot"></span>
+      <div><strong id="connection-text">Checking local companion…</strong><small>SQLite, Excel, resumes, and PDFs remain on this computer.</small></div>
+    </section>
+
+    <section class="card job-card">
+      <div class="section-title"><h2>Current visible listing</h2><label class="toggle"><input id="auto-capture" type="checkbox"> Auto-capture expanded About the job</label></div>
+      <h3 id="job-title">Open a LinkedIn job page</h3>
+      <p id="job-company">The job title, company, and full visible description are required.</p>
+      <div class="facts"><span id="job-location">Location not shown</span><span id="job-workplace">Workplace not shown</span><span id="job-posted">Posting date not shown</span></div>
+      <button id="capture" class="primary">Capture this job</button>
+      <p id="capture-status" class="status" role="status"></p>
+    </section>
+
+    <section class="card analysis-card">
+      <div class="section-title"><h2>Saved job analysis</h2><button id="rematch" class="text-button" type="button">Match all again</button></div>
+      <p id="analysis-summary">Capture a job to view its resume match.</p>
+      <div id="skills" class="skills" hidden></div>
+      <a id="resume-link" hidden target="_blank" rel="noreferrer">Open tailored PDF resume</a>
+      <button id="letter" class="secondary" type="button" disabled>Generate cover-letter draft</button>
+      <div id="letter-output" class="draft-output" hidden></div>
+    </section>
+
+    <section class="card application-card">
+      <h2>Manual application review</h2>
+      <p>Open the application yourself. This assistant never clicks Apply, Save, a declaration, or Submit.</p>
+      <button id="start-review" class="secondary" type="button" disabled>Start application review</button>
+      <button id="fill-fields" class="secondary" type="button" disabled>Fill safe empty fields</button>
+      <button id="drafts" class="secondary" type="button" disabled>Draft visible text answers</button>
+      <div id="draft-output" class="draft-output" hidden></div>
+    </section>
+
+    <section class="actions">
+      <a id="dashboard" class="outline action-link" href="http://127.0.0.1:8766/" target="_blank" rel="noreferrer">Open local dashboard</a>
+      <a id="profile" class="outline action-link" href="profile.html" target="_blank" rel="noreferrer">Edit safe fill profile</a>
+      <p id="action-status" class="status" role="status"></p>
+    </section>
+  </main>
+  <footer>Do not put a password, verification code, national ID, or declaration answer in the profile.</footer>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

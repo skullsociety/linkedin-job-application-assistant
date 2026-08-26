@@ -1,0 +1,40 @@
+:root { color-scheme: light; font-family: "Segoe UI", Arial, sans-serif; color: #172033; background: #f4f7fb; }
+* { box-sizing: border-box; }
+body { min-width: 340px; margin: 0; }
+header { padding: 23px 21px 19px; color: #fff; background: linear-gradient(135deg, #004182, #0a66c2 64%, #4f9bf2); }
+.eyebrow { font-size: 10px; font-weight: 800; letter-spacing: .13em; opacity: .78; }
+h1 { margin: 5px 0 6px; font-size: 21px; letter-spacing: -.02em; }
+header p { margin: 0; font-size: 12px; line-height: 1.45; opacity: .9; }
+main { display: grid; gap: 12px; padding: 14px; }
+.card { padding: 15px; border: 1px solid #dbe4ef; border-radius: 13px; background: #fff; box-shadow: 0 5px 16px rgba(16, 45, 82, .06); }
+.connection { display: flex; gap: 10px; align-items: center; padding: 12px 14px; }
+.connection small { display: block; margin-top: 3px; color: #657386; font-size: 11px; line-height: 1.35; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: #b42318; box-shadow: 0 0 0 4px #ffe9e7; }
+.dot.online { background: #057642; box-shadow: 0 0 0 4px #e6f6ec; }
+.section-title { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+h2 { margin: 0 0 10px; font-size: 14px; }
+h3 { margin: 0 0 5px; font-size: 17px; line-height: 1.25; }
+.job-card > p, .application-card > p { margin: 0 0 12px; color: #536277; font-size: 12px; line-height: 1.45; }
+.facts { display: flex; flex-wrap: wrap; gap: 5px; margin: 9px 0 14px; }
+.facts span, .skills span { display: inline-block; padding: 4px 7px; border-radius: 999px; color: #46556a; background: #edf3f8; font-size: 10px; font-weight: 650; }
+button { width: 100%; border: 0; border-radius: 8px; padding: 10px 12px; font: 700 12px "Segoe UI", Arial, sans-serif; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .55; }
+.primary { color: #fff; background: #0a66c2; }
+.secondary { margin-top: 8px; color: #0a4d8c; background: #e9f3ff; }
+.outline { color: #0a5bab; background: #fff; border: 1px solid #a4c6ea; }
+.action-link { display: flex; align-items: center; justify-content: center; width: 100%; border-radius: 8px; padding: 10px 12px; font: 700 12px "Segoe UI", Arial, sans-serif; text-align: center; text-decoration: none; cursor: pointer; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.actions .status { grid-column: 1 / -1; margin: 0; }
+.text-button { width: auto; padding: 0; color: #0a66c2; background: transparent; font-size: 11px; }
+.toggle { display: flex; width: 156px; gap: 5px; align-items: flex-start; color: #536277; font-size: 10px; line-height: 1.25; font-weight: 650; }
+.toggle input { flex: 0 0 auto; margin: 1px 0 0; }
+.status { min-height: 16px; margin: 9px 0 0; color: #057642; font-size: 11px; line-height: 1.35; }
+.status.error { color: #b42318; }
+.analysis-card > p { margin: 0 0 9px; color: #46556a; font-size: 12px; line-height: 1.45; }
+.skills { margin: 8px 0; line-height: 1.9; }
+#resume-link { margin-top: 5px; color: #057642; font-size: 12px; font-weight: 750; text-decoration: none; }
+#resume-link:hover { text-decoration: underline; }
+.draft-output { margin-top: 10px; padding: 10px; overflow-wrap: anywhere; border: 1px solid #dbe4ef; border-radius: 8px; color: #35455b; background: #f8fafc; font-size: 11px; line-height: 1.45; white-space: pre-wrap; }
+.draft-question { margin: 0 0 4px; color: #0a4d8c; font-weight: 750; }
+.draft-answer { margin: 0 0 11px; }
+footer { padding: 0 16px 15px; color: #7a4b11; font-size: 10px; line-height: 1.35; }

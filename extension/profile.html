@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>LinkedIn Assistant Profile</title><link rel="stylesheet" href="profile.css"></head>
+<body><header><span>LINKEDIN JOB APPLICATION ASSISTANT</span><h1>Safe fill profile</h1><p>These values stay in Chrome on this computer. Empty values are skipped. Passwords and sensitive application answers are never collected here.</p></header>
+<main><section class="notice">Use only contact fields you are comfortable having filled into an already-open application form. The assistant does not click Apply, continue, declarations, or Submit.</section>
+<form id="profile-form"><section class="card"><h2>Contact details</h2><div class="grid">
+<label>First name<input name="first_name" autocomplete="given-name"></label><label>Last name<input name="last_name" autocomplete="family-name"></label>
+<label>Email<input name="email" type="email" autocomplete="email"></label><label>Phone<input name="phone" autocomplete="tel"></label>
+<label>Location<input name="location" autocomplete="address-level2"></label><label>LinkedIn profile URL<input name="linkedin_url" inputmode="url"></label>
+<label class="wide">Website or portfolio URL<input name="website_url" inputmode="url"></label>
+</div></section><section class="card"><h2>Capture behaviour</h2><label class="check"><input id="auto-capture" type="checkbox"> Automatically save a job only after its expanded About the job description is visible</label><p>This does not open search results, log in, click a page control, or capture a collapsed description.</p></section>
+<div class="actions"><button class="primary" type="submit">Save locally</button><button id="reload" class="secondary" type="button">Discard changes</button><span id="status" role="status"></span></div></form></main><script src="profile.js"></script></body></html>

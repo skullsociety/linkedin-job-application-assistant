@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "LinkedIn Job Application Assistant",
+  "version": "1.2.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA32jAaby3RCx/DSPOBbEM7wo5VXOHvdJXZGmI1VqpX7L+f9V1GP6l7/5vSaGKOFDQDCc3csvUCnB9we2T3zjMD8BrIyfNIzYqY01RmS88fRfSgTPShAvok4RoyxCQZVJFVJBxz6ArYgrVh7oVU9L2i4Ilm/2ol1HjebTRBneV39ZPSCzoJ5gcbGK8ylKpyCWhVV1jBCsRbDLwwQkQbwWobphIOtLJLADuoAybSA5IvpG3WEBDApZ28rUSaOtzxAE4dXcGIM2BPwKCDKLhcdzTTEwFLl2PJgZ848Famc+vLkb8sXdIZ43TvVezofcTYPTuBWew+m0P6ArD5aFlZN2lwwIDAQAB",
+  "description": "Capture visible LinkedIn jobs locally and help review applications without submitting them.",
+  "permissions": ["activeTab", "nativeMessaging", "sidePanel", "scripting", "storage", "tabs"],
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "https://linkedin.com/*",
+    "https://*.myworkdayjobs.com/*",
+    "https://*.successfactors.com/*",
+    "http://127.0.0.1:8766/*"
+  ],
+  "background": { "service_worker": "service-worker.js" },
+  "action": { "default_title": "Open LinkedIn Job Application Assistant" },
+  "options_page": "profile.html",
+  "commands": {
+    "capture-current-job": {
+      "suggested_key": { "windows": "Ctrl+Q" },
+      "description": "Capture the current visible LinkedIn job"
+    },
+    "open-local-dashboard": {
+      "suggested_key": { "windows": "Ctrl+M" },
+      "description": "Open the local LinkedIn dashboard"
+    }
+  },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "content_scripts": [{
+    "matches": ["https://www.linkedin.com/*", "https://linkedin.com/*"],
+    "js": ["content.js"],
+    "run_at": "document_idle"
+  }, {
+    "matches": ["https://*.myworkdayjobs.com/*"],
+    "js": ["content.js"],
+    "run_at": "document_idle"
+  }, {
+    "matches": ["https://*.successfactors.com/*"],
+    "js": ["content.js"],
+    "run_at": "document_idle"
+  }]
+}

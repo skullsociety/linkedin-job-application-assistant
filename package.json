@@ -1,0 +1,46 @@
+{
+  "name": "linkedin-job-application-assistant",
+  "version": "1.2.0",
+  "description": "A private Chrome extension and local companion for capturing and tracking job listings without automatic submission.",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "linkedin-job-assistant": "bin/linkedin-job-assistant.js"
+  },
+  "files": [
+    "bin/",
+    "companion/",
+    "extension/",
+    "job_assistant/",
+    ".env.example",
+    "config.example.toml",
+    "profile.example.json",
+    "requirements.txt",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "setup": "node bin/linkedin-job-assistant.js setup",
+    "start": "node bin/linkedin-job-assistant.js start",
+    "dashboard": "node bin/linkedin-job-assistant.js dashboard",
+    "doctor": "node bin/linkedin-job-assistant.js doctor",
+    "extension:path": "node bin/linkedin-job-assistant.js extension-path",
+    "chrome:install": "node bin/linkedin-job-assistant.js install-chrome-host",
+    "chrome:remove": "node bin/linkedin-job-assistant.js remove-chrome-host",
+    "chrome:id": "node bin/linkedin-job-assistant.js chrome-extension-id",
+    "autostart:install": "node bin/linkedin-job-assistant.js install-autostart",
+    "autostart:remove": "node bin/linkedin-job-assistant.js remove-autostart",
+    "test:js": "node --check extension/content.js && node --check extension/service-worker.js && node --check extension/sidepanel.js && node --check extension/profile.js && node --check bin/linkedin-job-assistant.js && node --check bin/native-messaging-host.js && node --test tests/native_host.test.js tests/extension.test.js",
+    "prepack": "npm run test:js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "chrome-extension",
+    "job-search",
+    "job-tracker",
+    "linkedin",
+    "sqlite"
+  ]
+}

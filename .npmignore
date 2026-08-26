@@ -1,0 +1,17 @@
+**/__pycache__/**
+**/*.py[cod]
+.env
+config.toml
+data/
+exports/
+logs/
+resumes/
+.venv/
+.test-deps/
+.npm-cache/
+node_modules/
+native-messaging/
+tests/
+*.pdf
+*.docx
+*.xlsx
