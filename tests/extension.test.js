@@ -27,10 +27,14 @@ test("LinkedIn checks reject suffix lookalike domains", () => {
   }
 });
 
-test("job capture waits for a header tied to the current LinkedIn job id", () => {
+test("job capture uses a current-id card or a verified document-title detail pane", () => {
   const script = fs.readFileSync(path.join(projectRoot, "extension", "content.js"), "utf8");
   assert.match(script, /function currentJobHeaderCard\(jobId\)/);
   assert.match(script, /linkedInJobId\(link\.href\) === jobId/);
+  assert.match(script, /function documentTitleHeaderLines\(\)/);
+  assert.match(script, /parts\.slice\(0, -2\)\.join\(" \| "\)/);
+  assert.match(script, /overflowY === "auto" \|\| overflowY === "scroll"/);
+  assert.match(script, /if \(!card\) return documentTitleHeaderLines\(\)/);
   assert.match(script, /\[\\p\{L\}\\p\{N\}\]\/u\.test\(title\)/);
   assert.doesNotMatch(script, /"main h1"/);
   assert.doesNotMatch(script, /lines\.find\(\(line, index\) => usableJobTitle/);

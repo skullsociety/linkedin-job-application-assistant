@@ -200,10 +200,58 @@
     return null;
   }
 
+  function documentTitleHeaderLines() {
+    const parts = clean(document.title).split(/\s+\|\s+/).map(clean).filter(Boolean);
+    if (parts.length < 3 || parts[parts.length - 1].toLowerCase() !== "linkedin") {
+      return { title: "", company: "", metadata: "" };
+    }
+    const title = parts.slice(0, -2).join(" | ");
+    const company = parts[parts.length - 2];
+    if (!usableJobTitle(title) || !company || company.length > 180 || !/[\p{L}\p{N}]/u.test(company)) {
+      return { title: "", company: "", metadata: "" };
+    }
+
+    const aboutHeading = [...document.querySelectorAll("h1, h2, h3, span, strong")]
+      .find((element) => visible(element) && clean(element.textContent).toLowerCase() === "about the job");
+    if (!aboutHeading) return { title: "", company: "", metadata: "" };
+
+    const hasExactText = (root, selectors, expected) => [...root.querySelectorAll(selectors)]
+      .some((element) => (
+        !element.closest("[role='dialog'], .artdeco-modal")
+        && visibleText(element) === expected
+      ));
+    let detailPane = null;
+    for (let element = aboutHeading.parentElement; element && element !== document.body; element = element.parentElement) {
+      if (!hasExactText(element, "h1, h2, h3, a, p, span, div", title)) continue;
+      if (!hasExactText(element, "a, p, span, div", company)) continue;
+      const overflowY = getComputedStyle(element).overflowY;
+      if ((overflowY === "auto" || overflowY === "scroll") && element.scrollHeight > element.clientHeight) {
+        detailPane = element;
+        break;
+      }
+    }
+    if (!detailPane) return { title: "", company: "", metadata: "" };
+
+    const lines = (detailPane.innerText || "").split(/\n+/).map(clean).filter(Boolean);
+    let metadata = lines.find((line) => (
+      line !== title
+      && line !== company
+      && (
+        /(?:reposted\s+)?\d+\s+(?:minute|hour|day|week|month)s?\s+ago/i.test(line)
+        || /(?:clicked apply|applicants?)/i.test(line)
+      )
+    )) || "";
+    if (!metadata) {
+      const summary = lines.find((line) => line !== title && line !== company && /\b(?:on-site|hybrid|remote)\b/i.test(line)) || "";
+      metadata = summary.startsWith(company) ? summary.slice(company.length).replace(/^[\s•·-]+/, "") : summary;
+    }
+    return { title, company, metadata };
+  }
+
   function headerLines() {
     const jobId = linkedInJobId(location.href);
     const card = jobId ? currentJobHeaderCard(jobId) : null;
-    if (!card) return { title: "", company: "", metadata: "" };
+    if (!card) return documentTitleHeaderLines();
 
     const matchingTitleLink = [...card.querySelectorAll("a[href]")]
       .find((link) => linkedInJobId(link.href) === jobId && usableJobTitle(visibleText(link)));
