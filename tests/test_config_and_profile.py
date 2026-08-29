@@ -34,10 +34,11 @@ class ConfigAndProfileTests(unittest.TestCase):
     def test_config_accepts_optional_resume_path(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             config = Path(directory) / "settings.toml"
-            config.write_text('resume_path = "C:/resumes/target.pdf"\n', encoding="utf-8")
+            resume_path = (Path(directory) / "resumes" / "target.pdf").resolve()
+            config.write_text(f'resume_path = "{resume_path.as_posix()}"\n', encoding="utf-8")
             with patch.dict(os.environ, {}, clear=True):
                 settings = get_settings(config)
-            self.assertEqual(settings.resume_path, Path("C:/resumes/target.pdf"))
+            self.assertEqual(settings.resume_path, resume_path)
 
     def test_config_uses_a_resume_folder_by_default(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
