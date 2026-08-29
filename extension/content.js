@@ -19,12 +19,21 @@
     return value === "linkedin.com" || value.endsWith(".linkedin.com");
   }
 
+  function linkedInJobId(value) {
+    try {
+      const url = new URL(value || "", location.href);
+      if (!isLinkedInHostname(url.hostname)) return "";
+      const direct = url.pathname.match(/\/jobs\/view\/(\d+)/);
+      const id = direct?.[1] || url.searchParams.get("currentJobId");
+      return id && /^\d+$/.test(id) ? id : "";
+    } catch (_error) {
+      return "";
+    }
+  }
+
   function canonicalJobUrl() {
-    const url = new URL(location.href);
-    if (!isLinkedInHostname(url.hostname)) return "";
-    const direct = url.pathname.match(/\/jobs\/view\/(\d+)/);
-    const id = direct?.[1] || url.searchParams.get("currentJobId");
-    return id && /^\d+$/.test(id) ? `https://www.linkedin.com/jobs/view/${id}/` : "";
+    const id = linkedInJobId(location.href);
+    return id ? `https://www.linkedin.com/jobs/view/${id}/` : "";
   }
 
   function onJobPage() {
@@ -128,16 +137,30 @@
     return rect.bottom >= 0 && rect.top <= innerHeight;
   }
 
-  const NON_JOB_TITLES = new Set(["easy apply", "apply", "save", "job details", "additional questions", "application"]);
+  const NON_JOB_TITLES = new Set([
+    "easy apply", "apply", "save", "job details", "additional questions", "application",
+    "job search", "jobs", "recommended jobs", "applicant insights", "top applicant",
+  ]);
+  const NON_JOB_TITLE_PATTERNS = [
+    /^you.{0,2}d be a top applicant$/i,
+    /^you.{0,2}re a top applicant$/i,
+    /^be among the (?:first|top) applicants?$/i,
+  ];
 
   function usableJobTitle(value) {
     const title = clean(value);
-    return Boolean(title && title.length <= 180 && !NON_JOB_TITLES.has(title.toLowerCase()));
+    return Boolean(
+      title
+      && title.length <= 180
+      && /[\p{L}\p{N}]/u.test(title)
+      && !NON_JOB_TITLES.has(title.toLowerCase())
+      && !NON_JOB_TITLE_PATTERNS.some((pattern) => pattern.test(title)),
+    );
   }
 
-  function jobHeaderText(selectors, predicate = () => true) {
+  function jobHeaderText(root, selectors, predicate = () => true) {
     for (const selector of selectors) {
-      for (const element of document.querySelectorAll(selector)) {
+      for (const element of root.querySelectorAll(selector)) {
         // An Easy Apply dialog can contain headings that look like job headings.
         if (element.closest("[role='dialog'], .artdeco-modal")) continue;
         const value = visibleText(element);
@@ -147,33 +170,67 @@
     return "";
   }
 
+  function elementReferencesJob(element, jobId) {
+    const markedElements = [
+      element,
+      ...element.querySelectorAll("[data-job-id], [data-entity-urn], [data-occludable-job-id]"),
+    ];
+    const attributes = ["data-job-id", "data-entity-urn", "data-occludable-job-id"];
+    const markerMatches = markedElements.some((candidate) => attributes.some((attribute) => {
+      const value = candidate.getAttribute(attribute) || "";
+      return new RegExp(`(?:^|\\D)${jobId}(?:\\D|$)`).test(value);
+    }));
+    if (markerMatches) return true;
+    return [...element.querySelectorAll("a[href]")]
+      .some((link) => linkedInJobId(link.href) === jobId);
+  }
+
+  function currentJobHeaderCard(jobId) {
+    const selectors = [
+      ".job-details-jobs-unified-top-card",
+      ".jobs-unified-top-card",
+      ".jobs-details-top-card",
+      "[data-view-name='job-details']",
+    ];
+    for (const selector of selectors) {
+      for (const element of document.querySelectorAll(selector)) {
+        if (visible(element) && elementReferencesJob(element, jobId)) return element;
+      }
+    }
+    return null;
+  }
+
   function headerLines() {
-    const card = document.querySelector(".job-details-jobs-unified-top-card");
-    const cardTitle = jobHeaderText([
+    const jobId = linkedInJobId(location.href);
+    const card = jobId ? currentJobHeaderCard(jobId) : null;
+    if (!card) return { title: "", company: "", metadata: "" };
+
+    const matchingTitleLink = [...card.querySelectorAll("a[href]")]
+      .find((link) => linkedInJobId(link.href) === jobId && usableJobTitle(visibleText(link)));
+    const title = visibleText(matchingTitleLink) || jobHeaderText(card, [
+      ".job-details-jobs-unified-top-card__job-title a",
       ".job-details-jobs-unified-top-card__job-title",
-      ".job-details-jobs-unified-top-card h1",
-    ], usableJobTitle);
-    const title = cardTitle || jobHeaderText([
+      ".jobs-unified-top-card__job-title a",
+      ".jobs-unified-top-card__job-title",
+      ".jobs-details-top-card__job-title",
       "[data-test-id='job-title']",
-      "[data-view-name*='job-details'] h1",
-      "main h1",
-      "h1",
+      "[class*='job-title']",
     ], usableJobTitle);
-    const company = jobHeaderText([
+    const company = jobHeaderText(card, [
       ".job-details-jobs-unified-top-card__company-name a",
       ".job-details-jobs-unified-top-card__company-name",
+      ".jobs-unified-top-card__company-name a",
+      ".jobs-unified-top-card__company-name",
       "[data-test-id='company-name']",
-      "[data-view-name*='job-details'] a[href*='/company/']",
-      "a[href*='/company/']",
+      "[class*='company-name'] a",
+      "[class*='company-name']",
     ]);
-    const metadata = card ? firstText([".job-details-jobs-unified-top-card__primary-description-container", ".job-details-jobs-unified-top-card__primary-description"])
-      : jobHeaderText(["[data-view-name*='job-details'] [class*='primary-description']"]);
-    if (title && company) return { title, company, metadata };
-    const lines = (document.body?.innerText || "").split(/\n+/).map(clean).filter(Boolean);
-    const titleIndex = title ? lines.indexOf(title) : -1;
-    const fallbackTitle = title || lines.find((line, index) => usableJobTitle(line) && index > 0 && /(?:ago|applicants|clicked apply|reposted)/i.test(lines[index + 1] || "")) || "";
-    const index = titleIndex >= 0 ? titleIndex : lines.indexOf(fallbackTitle);
-    return { title: fallbackTitle, company: company || (index > 0 ? lines[index - 1] : ""), metadata };
+    const metadata = jobHeaderText(card, [
+      ".job-details-jobs-unified-top-card__primary-description-container",
+      ".job-details-jobs-unified-top-card__primary-description",
+      "[class*='primary-description']",
+    ]);
+    return { title, company, metadata };
   }
 
   function firstVisibleLink(selectors) {

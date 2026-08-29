@@ -45,6 +45,17 @@ VERIFICATION_MARKERS = (
     "captcha",
     "robot check",
 )
+INVALID_JOB_TITLES = frozenset({
+    "applicant insights",
+    "be among the first applicants",
+    "be among the top applicants",
+    "job search",
+    "jobs",
+    "recommended jobs",
+    "top applicant",
+    "you d be a top applicant",
+    "you re a top applicant",
+})
 
 
 class LinkedInStore:
@@ -93,6 +104,10 @@ class LinkedInStore:
     def set_applied(self, job_id: int, applied: bool) -> Job:
         with self._repository() as repository:
             return repository.set_applied(job_id, applied)
+
+    def set_followed_up(self, job_id: int, followed_up: bool) -> Job:
+        with self._repository() as repository:
+            return repository.set_followed_up(job_id, followed_up)
 
     def set_tailored_resume(self, job_id: int, path: str | None) -> Job:
         with self._repository() as repository:
@@ -202,7 +217,7 @@ def payload_to_job(payload: dict[str, Any]) -> Job:
     """Validate an extension capture without accepting page HTML or credentials."""
     if not isinstance(payload, dict):
         raise ValueError("The captured job must be an object.")
-    title = _text(payload.get("title"), "Job title")
+    title = _job_title(payload.get("title"))
     company = _text(payload.get("company"), "Company")
     url = canonicalize_job_url(_text(payload.get("url"), "Job URL"))
     parsed = urlsplit(url)
@@ -258,6 +273,14 @@ def _text(value: Any, label: str) -> str:
     if not cleaned:
         raise ValueError(f"{label} is not visible yet. Open a fully loaded LinkedIn job-detail page and try again.")
     return cleaned
+
+
+def _job_title(value: Any) -> str:
+    title = _text(value, "Job title")
+    normalized = re.sub(r"[^a-z0-9]+", " ", title.casefold()).strip()
+    if not any(character.isalnum() for character in title) or normalized in INVALID_JOB_TITLES:
+        raise ValueError("The LinkedIn job title is not ready yet. Wait for the selected listing to finish loading and try again.")
+    return title
 
 
 def _optional_text(value: Any) -> str | None:
@@ -409,6 +432,20 @@ class CompanionHandler(BaseHTTPRequestHandler):
                     response["excel_warning"] = warning
                 self._json(HTTPStatus.OK, response, origin)
                 return
+            follow_up_match = re.fullmatch(r"/api/jobs/(\d+)/follow-up", self.path)
+            if follow_up_match:
+                if not _is_dashboard_origin(origin):
+                    raise PermissionError("Follow-up status can only be changed from the local dashboard.")
+                followed_up = payload.get("followed_up")
+                if not isinstance(followed_up, bool):
+                    raise ValueError("Followed up must be true or false.")
+                saved = self.store.set_followed_up(int(follow_up_match.group(1)), followed_up)
+                warning = self.store.export()
+                response = {"ok": True, "job": serialize_job(saved)}
+                if warning:
+                    response["excel_warning"] = warning
+                self._json(HTTPStatus.OK, response, origin)
+                return
             match = re.fullmatch(r"/api/jobs/(\d+)/(drafts|cover-letter)", self.path)
             if match and _is_extension_origin(origin):
                 job = self.store.get(int(match.group(1)))
@@ -530,6 +567,14 @@ def render_dashboard(jobs: list[Job]) -> str:
         applied_date = _dashboard_date(job.applied_at) if job.applied else "Not applied"
         not_applied_selected = "" if job.applied else " selected"
         applied_selected = " selected" if job.applied else ""
+        no_follow_up_selected = "" if job.followed_up else " selected"
+        followed_up_selected = " selected" if job.followed_up else ""
+        if job.followed_up:
+            follow_up_detail = f"Followed up {_dashboard_date(job.followed_up_at)}"
+        elif job.follow_up_date:
+            follow_up_detail = f"Scheduled {_dashboard_date(job.follow_up_date)}"
+        else:
+            follow_up_detail = "Not followed up"
         rows.append(
             f'<tr class="{"applied-row" if job.applied else ""}">'
             f'<td class="position"><a href="{html.escape(job.url, quote=True)}" target="_blank" rel="noreferrer">{html.escape(job.title)}</a>'
@@ -539,23 +584,27 @@ def render_dashboard(jobs: list[Job]) -> str:
             f'<td><select class="applied-select" data-id="{job.id}" data-previous="{1 if job.applied else 0}" aria-label="Application status for {html.escape(job.title, quote=True)}">'
             f'<option value="0"{not_applied_selected}>Not applied</option><option value="1"{applied_selected}>Applied</option></select>'
             f'<small class="applied-date" data-id="{job.id}">{html.escape(applied_date)}</small></td>'
-            f"<td>{html.escape(job.follow_up_date or 'Not scheduled')}</td>"
+            f'<td><select class="follow-up-select" data-id="{job.id}" data-previous="{1 if job.followed_up else 0}" aria-label="Follow-up status for {html.escape(job.title, quote=True)}">'
+            f'<option value="0"{no_follow_up_selected}>No</option><option value="1"{followed_up_selected}>Yes</option></select>'
+            f'<small class="follow-up-detail" data-id="{job.id}">{html.escape(follow_up_detail)}</small></td>'
             f"<td>{resume}</td><td><button data-id=\"{job.id}\" class=\"delete\">Delete</button></td>"
             "</tr>"
         )
     table = "".join(rows) or '<tr><td colspan="7" class="empty">No LinkedIn jobs captured yet.</td></tr>'
     applied_count = sum(1 for job in jobs if job.applied)
+    followed_up_count = sum(1 for job in jobs if job.followed_up)
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>LinkedIn Job Application Assistant</title><style>
 :root{{--blue:#0a66c2;--ink:#162033;--muted:#657386;font-family:Segoe UI,Arial,sans-serif;color:var(--ink);background:#f3f6f9}}*{{box-sizing:border-box}}body{{margin:0}}header{{padding:30px 5vw;background:linear-gradient(135deg,#004182,var(--blue));color:#fff}}h1{{margin:0 0 7px;font-size:30px}}header p{{margin:0;opacity:.9}}main{{padding:24px 5vw}}.toolbar{{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}}button,select{{border:0;border-radius:8px;padding:9px 12px;font:700 13px Segoe UI,Arial,sans-serif;cursor:pointer}}button{{background:var(--blue);color:#fff}}button.delete{{background:#b42318}}select{{border:1px solid #b9c8d8;background:#fff;color:var(--ink)}}select:disabled{{opacity:.6;cursor:wait}}#status{{min-height:18px;color:#b42318;font-size:13px}}#status.ok{{color:#057642}}.card{{overflow:auto;border-radius:13px;background:#fff;box-shadow:0 5px 20px #1b365515}}table{{width:100%;border-collapse:collapse;min-width:900px}}th,td{{padding:14px 15px;border-bottom:1px solid #e7edf3;text-align:left;vertical-align:top}}th{{background:#f8fafc;font-size:12px;text-transform:uppercase;color:#526173}}tr.applied-row{{background:#f5fbf7}}a{{color:var(--blue);font-weight:750;text-decoration:none}}.position strong,.position small,td small{{display:block;margin-top:5px}}small{{color:var(--muted)}}.empty{{padding:38px;text-align:center;color:var(--muted)}}@media(max-width:700px){{header,main{{padding-left:20px;padding-right:20px}}h1{{font-size:24px}}}}</style></head>
-<body><header><h1>LinkedIn Job Application Assistant</h1><p>{len(jobs)} job{'s' if len(jobs) != 1 else ''} captured · {applied_count} marked applied · Updates appear automatically</p></header>
+<body><header><h1>LinkedIn Job Application Assistant</h1><p>{len(jobs)} job{'s' if len(jobs) != 1 else ''} captured · {applied_count} marked applied · {followed_up_count} followed up · Updates appear automatically</p></header>
 <main><div class="toolbar"><button id="rematch">Match newest resume again</button><button id="clear">Clear all saved data</button><span id="status" role="status"></span></div>
-<div class="card"><table><thead><tr><th>Position</th><th>Captured</th><th>Match</th><th>Applied?</th><th>Follow-up</th><th>Resume</th><th></th></tr></thead><tbody>{table}</tbody></table></div></main>
+<div class="card"><table><thead><tr><th>Position</th><th>Captured</th><th>Match</th><th>Applied?</th><th>Followed up?</th><th>Resume</th><th></th></tr></thead><tbody>{table}</tbody></table></div></main>
 <script>
 const status=document.querySelector('#status');
 async function request(path,options={{}}){{const r=await fetch(path,options);const p=await r.json().catch(()=>({{}}));if(!r.ok||!p.ok)throw new Error(p.error||'The request did not finish.');return p}}
 document.querySelectorAll('.applied-select').forEach(select=>select.onchange=async()=>{{const previous=select.dataset.previous;select.disabled=true;status.className='';status.textContent='Saving application status…';try{{const p=await request('/api/jobs/'+select.dataset.id+'/application',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{applied:select.value==='1'}})}});select.dataset.previous=p.job.applied?'1':'0';document.querySelector('.applied-date[data-id="'+select.dataset.id+'"]').textContent=p.job.applied?(p.job.applied_at||'Applied'):'Not applied';status.className='ok';status.textContent=p.job.applied?'Marked as applied.':'Marked as not applied.'}}catch(e){{select.value=previous;status.className='';status.textContent=e.message}}finally{{select.disabled=false}}}});
+document.querySelectorAll('.follow-up-select').forEach(select=>select.onchange=async()=>{{const previous=select.dataset.previous;select.disabled=true;status.className='';status.textContent='Saving follow-up status…';try{{const p=await request('/api/jobs/'+select.dataset.id+'/follow-up',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{followed_up:select.value==='1'}})}});select.dataset.previous=p.job.followed_up?'1':'0';document.querySelector('.follow-up-detail[data-id="'+select.dataset.id+'"]').textContent=p.job.followed_up?'Followed up':'Not followed up';status.className='ok';status.textContent=p.job.followed_up?'Marked as followed up.':'Marked as not followed up.'}}catch(e){{select.value=previous;status.className='';status.textContent=e.message}}finally{{select.disabled=false}}}});
 document.querySelector('#rematch').onclick=async()=>{{try{{status.textContent='Matching queued…';await request('/api/jobs/rematch',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:'{{}}'}});status.textContent='Matching is running in the background.'}}catch(e){{status.textContent=e.message}}}};
 document.querySelector('#clear').onclick=async()=>{{if(prompt('Type DELETE to remove saved jobs, the Excel tracker, and tailored PDFs.')!=='DELETE')return;try{{await request('/api/jobs/clear',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{confirmation:'DELETE'}})}});location.reload()}}catch(e){{status.textContent=e.message}}}};
 document.querySelectorAll('.delete').forEach(b=>b.onclick=async()=>{{if(!confirm('Delete this saved job?'))return;try{{await request('/api/jobs/'+b.dataset.id,{{method:'DELETE'}});location.reload()}}catch(e){{status.textContent=e.message}}}});

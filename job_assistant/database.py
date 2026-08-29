@@ -76,6 +76,8 @@ class JobRepository:
                 recommendation TEXT,
                 tailored_resume_path TEXT,
                 follow_up_date TEXT,
+                followed_up INTEGER NOT NULL DEFAULT 0 CHECK(followed_up IN (0, 1)),
+                followed_up_at TEXT,
                 date_found TEXT NOT NULL,
                 match_score INTEGER CHECK(match_score BETWEEN 0 AND 100),
                 notes TEXT,
@@ -115,6 +117,8 @@ class JobRepository:
             "platform": "TEXT",
             "source": "TEXT NOT NULL DEFAULT 'linkedin'",
             "follow_up_date": "TEXT",
+            "followed_up": "INTEGER NOT NULL DEFAULT 0",
+            "followed_up_at": "TEXT",
             "priority": "TEXT",
             "interest_level": "TEXT",
             "tags": "TEXT",
@@ -145,9 +149,10 @@ class JobRepository:
                seen_count=CASE WHEN seen_count IS NULL OR seen_count < 1 THEN 1 ELSE seen_count END,
                applied=CASE WHEN status='submitted_manually' THEN 1 ELSE COALESCE(applied, 0) END,
                applied_at=CASE WHEN status='submitted_manually' THEN COALESCE(applied_at, submission_approved_at, updated_at) ELSE applied_at END,
+               followed_up=COALESCE(followed_up, 0),
                source=COALESCE(NULLIF(TRIM(source), ''), 'linkedin')
                WHERE first_seen_at IS NULL OR last_seen_at IS NULL OR seen_count IS NULL OR seen_count < 1
-                  OR applied IS NULL OR source IS NULL OR TRIM(source) = ''
+                  OR applied IS NULL OR followed_up IS NULL OR source IS NULL OR TRIM(source) = ''
                   OR (status='submitted_manually' AND (applied <> 1 OR applied_at IS NULL))"""
         )
         self._canonicalize_existing_urls()
@@ -181,9 +186,10 @@ class JobRepository:
               title, company, url, linkedin_job_id, company_url, application_url, application_method,
               location, salary, platform, source, job_description, workplace_type, employment_type, seniority_level,
               applicant_count, posting_date, description_hash, first_seen_at, last_seen_at, seen_count,
-              date_found, match_score, notes, status, priority, interest_level, tags, applied, applied_at
+              date_found, match_score, notes, status, priority, interest_level, tags, applied, applied_at,
+              followed_up, followed_up_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(url) DO UPDATE SET
               title=excluded.title, company=excluded.company, location=COALESCE(excluded.location, jobs.location),
               salary=COALESCE(excluded.salary, jobs.salary), match_score=COALESCE(excluded.match_score, jobs.match_score),
@@ -209,7 +215,7 @@ class JobRepository:
                 job.workplace_type, job.employment_type, job.seniority_level, job.applicant_count,
                 job.posting_date, job.description_hash, job.first_seen_at, job.last_seen_at, job.seen_count,
                 job.date_found, job.match_score, job.notes, job.status, job.priority, job.interest_level,
-                job.tags, int(job.applied), job.applied_at,
+                job.tags, int(job.applied), job.applied_at, int(job.followed_up), job.followed_up_at,
             ),
         )
         saved = self.by_url(job.url)
@@ -289,6 +295,31 @@ class JobRepository:
                 (job_id,),
             )
             event_type = "APPLICATION_UNMARKED"
+        self._record_event(job_id, event_type, source="dashboard", confirmed_by_user=True)
+        self.connection.commit()
+        return self._required_job(job_id)
+
+    def set_followed_up(self, job_id: int, followed_up: bool) -> Job:
+        """Set the user-confirmed follow-up state and retain an auditable event."""
+        job = self.get(job_id)
+        if not job:
+            raise KeyError(f"No job found with id {job_id}.")
+        if job.followed_up == followed_up:
+            return job
+        if followed_up:
+            self.connection.execute(
+                """UPDATE jobs SET followed_up=1, followed_up_at=CURRENT_TIMESTAMP,
+                   updated_at=CURRENT_TIMESTAMP WHERE id=?""",
+                (job_id,),
+            )
+            event_type = "FOLLOW_UP_COMPLETED"
+        else:
+            self.connection.execute(
+                """UPDATE jobs SET followed_up=0, followed_up_at=NULL,
+                   updated_at=CURRENT_TIMESTAMP WHERE id=?""",
+                (job_id,),
+            )
+            event_type = "FOLLOW_UP_UNMARKED"
         self._record_event(job_id, event_type, source="dashboard", confirmed_by_user=True)
         self.connection.commit()
         return self._required_job(job_id)
@@ -390,8 +421,9 @@ class JobRepository:
     def _row_to_job(row: sqlite3.Row) -> Job:
         row_keys = set(row.keys())
         values = {key: row[key] for key in Job.__dataclass_fields__ if key in row_keys}
-        if "applied" in values:
-            values["applied"] = bool(values["applied"])
+        for boolean_field in ("applied", "followed_up"):
+            if boolean_field in values:
+                values[boolean_field] = bool(values[boolean_field])
         return Job(**values)
 
 

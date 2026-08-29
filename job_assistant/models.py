@@ -34,6 +34,8 @@ class Job:
     recommendation: str | None = None
     tailored_resume_path: str | None = None
     follow_up_date: str | None = None
+    followed_up: bool = False
+    followed_up_at: str | None = None
     date_found: str = ""
     match_score: int | None = None
     notes: str | None = None

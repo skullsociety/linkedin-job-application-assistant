@@ -65,6 +65,7 @@ class DatabaseAndExportTests(unittest.TestCase):
                 saved = repository.list()[0]
                 self.assertEqual(saved.title, "Legacy Engineer")
                 self.assertEqual(saved.source, "linkedin")
+                self.assertFalse(saved.followed_up)
                 self.assertEqual(repository.connection.execute("SELECT COUNT(*) FROM jobs").fetchone()[0], 1)
 
     def test_save_and_export_job(self) -> None:
@@ -81,6 +82,7 @@ class DatabaseAndExportTests(unittest.TestCase):
                 recommendation="apply",
             )
             repository.record_submission_approval(saved.id or 0)
+            repository.set_followed_up(saved.id or 0, True)
             output = export_jobs(repository.list(), tmp_path / "tracker.xlsx")
             sheet = load_workbook(output).active
             self.assertEqual(sheet.max_row, 4)
@@ -88,8 +90,9 @@ class DatabaseAndExportTests(unittest.TestCase):
             self.assertEqual(sheet.cell(4, 4).value, "Engineer")
             self.assertEqual(sheet.cell(4, 9).value, "sql, tableau")
             self.assertEqual(sheet.cell(4, 10).value, "ready_for_manual_submit")
+            self.assertEqual(sheet.cell(4, 13).value, "Yes")
             self.assertIsNone(sheet.auto_filter.ref)
-            self.assertEqual(sheet.tables["JobApplications"].ref, "A3:L4")
+            self.assertEqual(sheet.tables["JobApplications"].ref, "A3:M4")
             repository.connection.close()
 
     def test_export_removes_duplicate_urls(self) -> None:
@@ -189,6 +192,20 @@ class DatabaseAndExportTests(unittest.TestCase):
                 self.assertIsNone(unmarked.applied_at)
                 self.assertEqual(unmarked.status, "saved")
                 self.assertEqual(repository.events(first.id or 0)[-1].event_type, "APPLICATION_UNMARKED")
+
+    def test_follow_up_status_and_events_are_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            with JobRepository(Path(directory) / "jobs.sqlite3") as repository:
+                saved = repository.upsert(Job("Engineer", "Example", "https://example.test/jobs/follow-up"))
+                followed_up = repository.set_followed_up(saved.id or 0, True)
+                self.assertTrue(followed_up.followed_up)
+                self.assertIsNotNone(followed_up.followed_up_at)
+                self.assertEqual(repository.events(saved.id or 0)[-1].event_type, "FOLLOW_UP_COMPLETED")
+
+                unmarked = repository.set_followed_up(saved.id or 0, False)
+                self.assertFalse(unmarked.followed_up)
+                self.assertIsNone(unmarked.followed_up_at)
+                self.assertEqual(repository.events(saved.id or 0)[-1].event_type, "FOLLOW_UP_UNMARKED")
 
     def test_delete_all_removes_saved_jobs(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

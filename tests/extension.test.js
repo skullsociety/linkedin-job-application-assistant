@@ -26,3 +26,12 @@ test("LinkedIn checks reject suffix lookalike domains", () => {
     assert.match(script, /\.endsWith\(["']\.linkedin\.com["']\)/);
   }
 });
+
+test("job capture waits for a header tied to the current LinkedIn job id", () => {
+  const script = fs.readFileSync(path.join(projectRoot, "extension", "content.js"), "utf8");
+  assert.match(script, /function currentJobHeaderCard\(jobId\)/);
+  assert.match(script, /linkedInJobId\(link\.href\) === jobId/);
+  assert.match(script, /\[\\p\{L\}\\p\{N\}\]\/u\.test\(title\)/);
+  assert.doesNotMatch(script, /"main h1"/);
+  assert.doesNotMatch(script, /lines\.find\(\(line, index\) => usableJobTitle/);
+});

@@ -64,6 +64,14 @@ class LinkedInCompanionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "About the job"):
             payload_to_job(self._payload("https://www.linkedin.com/jobs/view/12345/", ""))
 
+    def test_payload_rejects_placeholder_and_unreadable_job_titles(self) -> None:
+        for title in (".", "�", "You’d be a top applicant"):
+            with self.subTest(title=title):
+                payload = self._payload("https://www.linkedin.com/jobs/view/12345/")
+                payload["title"] = title
+                with self.assertRaisesRegex(ValueError, "job title is not ready"):
+                    payload_to_job(payload)
+
     def test_linkedin_and_extension_origin_checks_reject_lookalikes(self) -> None:
         with self.assertRaisesRegex(ValueError, "LinkedIn job listing"):
             payload_to_job(self._payload("https://evil-linkedin.com/jobs/view/12345/"))
@@ -83,13 +91,18 @@ class LinkedInCompanionTests(unittest.TestCase):
             self.assertEqual(second.seen_count, 2)
             self.assertEqual(len(store.list()), 1)
 
-    def test_dashboard_is_compact_and_has_applied_control(self) -> None:
+    def test_dashboard_is_compact_and_has_saved_status_controls(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             store = LinkedInStore(self._settings(Path(directory)))
             job = store.upsert_capture(self._payload("https://www.linkedin.com/jobs/view/12345/"))
             document = render_dashboard(store.list())
             self.assertIn("Applied?", document)
             self.assertIn('class="applied-select"', document)
+            self.assertIn("Followed up?", document)
+            self.assertIn('class="follow-up-select"', document)
+            self.assertIn('<option value="0" selected>No</option>', document)
+            self.assertIn('<option value="1">Yes</option>', document)
+            self.assertIn("'/api/jobs/'+select.dataset.id+'/follow-up'", document)
             self.assertIn("Position", document)
             self.assertNotIn("<th>Source</th>", document)
             self.assertNotIn("<th>Matching skills</th>", document)
@@ -97,3 +110,7 @@ class LinkedInCompanionTests(unittest.TestCase):
             updated = store.get(job.id or 0)
             self.assertTrue(updated.applied)
             self.assertIsNotNone(updated.applied_at)
+            store.set_followed_up(job.id or 0, True)
+            followed_up = store.get(job.id or 0)
+            self.assertTrue(followed_up.followed_up)
+            self.assertIsNotNone(followed_up.followed_up_at)

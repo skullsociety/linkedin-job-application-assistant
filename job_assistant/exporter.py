@@ -14,7 +14,7 @@ from .urls import canonicalize_job_url
 
 HEADERS = [
     "Date", "Platform", "Company", "Role", "URL", "Location", "Salary", "Match Score",
-    "Skills Missing for 100% Match", "Status", "Notes", "Follow-up Date",
+    "Skills Missing for 100% Match", "Status", "Notes", "Follow-up Date", "Followed Up",
 ]
 
 
@@ -25,7 +25,7 @@ def export_jobs(jobs: list[Job], output: Path) -> Path:
     sheet = book.active
     sheet.title = "Job Tracker"
     sheet.sheet_view.showGridLines = False
-    sheet.merge_cells("A1:L1")
+    sheet.merge_cells("A1:M1")
     title = sheet["A1"]
     title.value = "Linkedin Job Application Assistant"
     title.font = Font(size=16, bold=True, color="FFFFFF")
@@ -48,11 +48,11 @@ def export_jobs(jobs: list[Job], output: Path) -> Path:
         sheet.append([
             _as_date(job.date_found), job.platform or _platform_from_url(job.url), job.company, job.title,
             canonical_url, job.location, job.salary, job.match_score, job.missing_skills, job.status, job.notes,
-            _as_date(job.follow_up_date),
+            _as_date(job.follow_up_date), "Yes" if job.followed_up else "No",
         ])
     final_row = max(sheet.max_row, 3)
     if final_row > 3:
-        table = Table(displayName="JobApplications", ref=f"A3:L{final_row}")
+        table = Table(displayName="JobApplications", ref=f"A3:M{final_row}")
         table.tableStyleInfo = TableStyleInfo(name="TableStyleMedium2", showRowStripes=True, showColumnStripes=False)
         sheet.add_table(table)
         for row in range(4, final_row + 1):
@@ -64,7 +64,7 @@ def export_jobs(jobs: list[Job], output: Path) -> Path:
             sheet.cell(row, 9).alignment = Alignment(vertical="top", wrap_text=True)
             sheet.cell(row, 11).alignment = Alignment(vertical="top", wrap_text=True)
     sheet.freeze_panes = "A4"
-    widths = [13, 14, 24, 28, 48, 22, 16, 13, 34, 25, 64, 16]
+    widths = [13, 14, 24, 28, 48, 22, 16, 13, 34, 25, 64, 16, 14]
     for index, width in enumerate(widths, 1):
         sheet.column_dimensions[chr(64 + index)].width = width
     sheet.column_dimensions["K"].width = 42
@@ -77,6 +77,9 @@ def export_jobs(jobs: list[Job], output: Path) -> Path:
         status_validation = DataValidation(type="list", formula1='"saved,reviewing,ready_for_manual_submit,submitted_manually,rejected,archived"', allow_blank=True)
         sheet.add_data_validation(status_validation)
         status_validation.add(f"J4:J{max(final_row, 104)}")
+        follow_up_validation = DataValidation(type="list", formula1='"No,Yes"', allow_blank=False)
+        sheet.add_data_validation(follow_up_validation)
+        follow_up_validation.add(f"M4:M{max(final_row, 104)}")
     book.save(output)
     return output
 
